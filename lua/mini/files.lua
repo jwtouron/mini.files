@@ -607,6 +607,7 @@ MiniFiles.config = {
     synchronize = '=',
     trim_left   = '<',
     trim_right  = '>',
+    execute_cmd = '!',
   },
 
   -- General options
@@ -863,6 +864,28 @@ MiniFiles.trim_right = function()
   H.explorer_refresh(explorer)
 end
 
+MiniFiles.execute_cmd = function()
+  local explorer = H.explorer_get()
+  if explorer == nil then return end
+
+  local fs_entry = MiniFiles.get_fs_entry(vim.api.nvim_get_current_buf(), vim.fn.line('.'))
+  assert(fs_entry and fs_entry.path)
+
+  local command = vim.fn.input("Command (use <path> for path): ")
+  if command == "" then return end
+
+  local count
+  command, count = command:gsub("<path>", fs_entry.path)
+  -- If no <path> substitutions made, append the path to the end of the line.
+  if count == 0 then command = command .. " " .. fs_entry.path end
+
+  local result = vim.fn.system(command)
+  if result == nil then return end
+
+  result = '"' .. vim.fn.escape(result, '"') .. '"'
+  vim.cmd.cgetexpr(result)
+end
+
 --- Reveal current working directory
 ---
 --- - Prepend branch with parent paths until current working directory is reached.
@@ -1083,6 +1106,7 @@ H.setup_config = function(config)
     ['mappings.synchronize'] = { config.mappings.synchronize, 'string' },
     ['mappings.trim_left'] = { config.mappings.trim_left, 'string' },
     ['mappings.trim_right'] = { config.mappings.trim_right, 'string' },
+    ['mappings.execute_cmd'] = { config.mappings.execute_cmd, 'string' },
 
     ['options.use_as_default_explorer'] = { config.options.use_as_default_explorer, 'boolean' },
     ['options.permanent_delete'] = { config.options.permanent_delete, 'boolean' },
@@ -1863,6 +1887,7 @@ H.buffer_make_mappings = function(buf_id, mappings)
   buf_map('n', mappings.synchronize, MiniFiles.synchronize, 'Synchronize')
   buf_map('n', mappings.trim_left,   MiniFiles.trim_left,   'Trim branch left')
   buf_map('n', mappings.trim_right,  MiniFiles.trim_right,  'Trim branch right')
+  buf_map('n', mappings.execute_cmd, MiniFiles.execute_cmd, 'Execute command on entry')
 
   H.map('x', mappings.go_in, go_in_visual, { buffer = buf_id, desc = 'Go in selected entries', expr = true })
   --stylua: ignore end
